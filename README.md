@@ -67,7 +67,3 @@ python3 src/run_tflite_cnn_ultrasonic.py \
   --speed 0.30 \
   --stop-distance 30
 ```
-
-## 면접용 한 줄 요약
-
-> 차량 무게중심 문제로 사람이 조종하기도 어려운 플랫폼을 먼저 안정화했고, CNN-LSTM까지 실험한 뒤 Raspberry Pi 실주행 병목이 추론 지연임을 확인하여 NVIDIA-style CNN 단독 구조와 TFLite INT8 양자화로 실시간성을 확보했습니다.
