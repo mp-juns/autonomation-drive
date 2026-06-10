@@ -1,0 +1,5 @@
+Raspberry Pi inference patch notes:
+- Run inference every 5 frames.
+- Keep last steering/throttle between inference steps.
+- Log avg/p95/max inference times.
+- Auto-detect sequence length from TFLite input tensor shape.
