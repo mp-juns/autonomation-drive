@@ -1,69 +1,129 @@
-# autonomation-drive
+## 문제 분석
 
-Raspberry Pi 기반 자율주행 RC카 프로젝트입니다.  
-수업 목표는 정해진 트랙을 10바퀴 안정적으로 완주하는 것이었고, 최종 평가에서 1등을 달성했습니다.
-
-## 핵심 흐름
-
-1. **차량 플랫폼 안정화**
-   - 초기 차량은 차체가 길고 무게중심이 맞지 않아 컨트롤러로도 회전이 어려웠습니다.
-   - 하드웨어를 다시 출력할 시간이 부족했기 때문에 무게중심을 후방으로 이동시키고, 회전 시 모터 속도 차이를 키워 주행 가능한 플랫폼으로 만들었습니다.
-
-2. **수동 주행 데이터 수집**
-   - MIT App Inventor 기반 조이스틱 제어로 차량을 직접 운전하며 학습 데이터를 수집했습니다.
-   - 차량이 안정화된 뒤 수집한 데이터가 모델 학습에 더 유효했습니다.
-
-3. **CNN-LSTM 실험**
-   - 연속 프레임 정보를 활용하기 위해 CNN-LSTM 기반 하이브리드 모델을 실험했습니다.
-   - 하지만 Raspberry Pi 실주행에서는 추론 지연과 jitter가 조향 반응성에 영향을 주었습니다.
-
-4. **최종 모델 단순화**
-   - 실주행에서는 복잡한 시계열 모델보다 빠른 반응성이 더 중요하다고 판단했습니다.
-   - 최종적으로 NVIDIA End-to-End Driving 스타일의 단일 프레임 CNN 구조로 단순화했습니다.
-
-5. **TFLite INT8 양자화**
-   - CNN 모델을 TensorFlow Lite로 변환하고 INT8 양자화를 적용해 Raspberry Pi에서의 추론 지연을 줄였습니다.
-   - 이 최적화가 최종 주행 안정성과 완주 시간 개선의 핵심이었습니다.
-
-## 디렉터리
+초기에는 연속 프레임 정보를 활용하기 위해 CNN-LSTM 구조를 사용하였습니다.
 
 ```text
-src/
-  quantize_cnn_int8.py              # CNN 모델 INT8 TFLite 양자화 스크립트
-  run_tflite_cnn_ultrasonic.py      # TFLite CNN + 초음파 정지 실주행 코드
-  convert_tflite_hybrid_float16.py  # 기존 CNN-LSTM float16 변환 스크립트
-  Final_RunMain_Hybrid_Ultrasonic.py# 기존 CNN-LSTM + 초음파 통합 코드
-
-camera_fix/
-  Raspberry Pi UVC 카메라 MJPG/GStreamer 안정화 테스트 코드
-
-docs/
-  project_process.md                # 면접/포트폴리오용 프로젝트 프로세스 정리
-  raspi_patch_notes.txt             # 라즈베리파이 추론 패치 메모
+연속 이미지
+↓
+CNN
+↓
+LSTM
+↓
+조향값 예측
 ```
 
-## 대표 실행 예시
+하지만 Raspberry Pi 환경에서는 추론 지연이 발생했습니다.
 
-### 1. CNN INT8 양자화
+실험 결과 약 32ms 수준의 추론 지연이 발생하였고, 실제 주행에서는 이 지연이 차량 반응성을 저하시켰습니다.
 
-```bash
-python3 src/quantize_cnn_int8.py \
-  --model Model/model_cnn_best.h5 \
-  --output Model/model_cnn_int8.tflite \
-  --representative-dir data/images \
-  --width 200 \
-  --height 66 \
-  --channels 3
+이를 통해
+
+> 정확도보다 실시간성이 더 중요한 병목
+
+이라는 사실을 확인할 수 있었습니다.
+
+---
+
+## 최종 모델
+
+최종적으로는 NVIDIA End-to-End Driving CNN 구조를 참고하여 다음과 같은 구조로 변경하였습니다.
+
+```text
+카메라 이미지
+↓
+CNN
+↓
+조향값 예측
 ```
 
-### 2. Raspberry Pi 실주행
+---
 
-```bash
-python3 src/run_tflite_cnn_ultrasonic.py \
-  --model Model/model_cnn_int8.tflite \
-  --width 200 \
-  --height 66 \
-  --camera-size 320 240 \
-  --speed 0.30 \
-  --stop-distance 30
-```
+# TensorFlow Lite 최적화
+
+프로젝트 후반부 가장 중요한 작업은 Raspberry Pi 환경 최적화였습니다.
+
+## 적용 기술
+
+- TensorFlow Lite
+- INT8 Quantization
+
+## 효과
+
+- 모델 크기 감소
+- 추론 속도 향상
+- 메모리 사용량 감소
+- 실시간 주행 성능 향상
+
+---
+
+# Raspberry Pi 실주행
+
+<p align="center">
+  <img src="docs/images/raspi_debug_03.jpeg" width="700">
+</p>
+
+Raspberry Pi에서
+
+- 카메라 입력
+- 모델 추론
+- 모터 제어
+- 센서 제어
+
+를 통합하여 자율주행 시스템을 구현하였습니다.
+
+---
+
+# 평가 트랙
+
+<p align="center">
+  <img src="docs/images/track_04.jpeg" width="700">
+</p>
+
+최종 평가는 지정된 트랙에서 진행되었습니다.
+
+차량은 해당 트랙을 안정적으로 주행할 수 있도록 설계 및 튜닝되었습니다.
+
+---
+
+# 시연 영상
+
+🎥 **주행 영상**
+
+[▶ 영상 보기](docs/videos/demo_drive_35s.mp4)
+
+---
+
+# 프로젝트 결과
+
+🏆 **최종 자율주행 평가 1위**
+
+## 수행 내용
+
+- 차량 설계 및 제작
+- 무게중심 문제 해결
+- 데이터 수집
+- CNN-LSTM 모델 개발
+- 병목 분석
+- NVIDIA CNN 적용
+- TensorFlow Lite INT8 양자화
+- Raspberry Pi 배포
+- 실주행 검증
+
+---
+
+# 배운 점
+
+이번 프로젝트를 통해
+
+- 하드웨어 설계
+- 데이터 품질
+- 모델 구조
+- 추론 속도
+- 시스템 최적화
+
+가 모두 중요하다는 것을 경험할 수 있었습니다.
+
+특히
+
+> CNN-LSTM 모델을 그대로 사용하는 것보다  
+> 실시간성을 확보하기 위해 모델을 단순화하고 양자화하는 것이 실제 성능 향상에 더 효과적이라는 점을 확인할 수 있었습니다.
